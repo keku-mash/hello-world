@@ -1,0 +1,480 @@
+<html>
+  <body>
+<!DOCTYPE html>
+<head>
+<meta charset="UTF-8">
+<script src="three.js"></script>
+<script src="OrbitControls.js"></script>
+<script>
+
+"use strict";
+
+var canvas, renderer, scene, camera; // Standard three.js requirements.
+
+var controls;  // An OrbitControls object that is used to implement
+               // rotation of the scene using the mouse.  (It actually rotates
+               // the camera around the scene.)
+
+var animating = false;  // Set to true when an animation is in progress.
+var frameNumber = 0;  // Frame number is advanced by 1 for each frame while animating.
+
+
+var room; 
+var floor, wall1, wall2, wall3;
+var ceiling;
+var rectLeftL, rectRightL;
+var rectsL, rectsL1, rectsL2, rectsL3;
+var square, square1, square2;
+var cube1, cube2, cube3;
+var rect1, rect2, rect3;
+var rectangle, rectangle1, rectangle2;
+var rectLeftR, rectRightR;
+var rectsR, rectsR1, rectsR2;
+var ElL, ElL1, ElL2, ElL3;
+var ElR, ElR1, ElR2, ElR3;
+var bar, bar1, bar2, bar3;
+var shapes = [], shapesCopy = [];
+
+
+/**
+ *  The render function draws the scene.
+ */
+function render() {
+    renderer.render(scene, camera);
+    renderer.shadowMapEnabled = true;
+}
+
+
+/**
+ * This function is called by the init() method to create the world. 
+ */
+function createWorld() {
+    
+    renderer.setClearColor("black"); // Background color for scene.
+    scene = new THREE.Scene();
+    
+    // ------------------- Make a camera with viewpoint light ----------------------
+    
+    camera = new THREE.PerspectiveCamera(30, canvas.width/canvas.height, 0.1, 100);
+    camera.position.set( 0, -2,30);
+
+
+    var light;  // A light shining from the direction of the camera; moves with the camera.
+    light = new THREE.DirectionalLight( 0xffffff, 0.5 );
+    light.position.set(0,0,1);
+    camera.add(light);
+
+    var lightLeft, lightRight, lightTop;
+
+    lightLeft = new THREE.DirectionalLight( 0xffffff, 0.5 );  // This light shines from the right.
+    lightLeft.position.set(-10,0,0);
+    scene.add( lightLeft ); 
+
+    lightLeft = new THREE.DirectionalLight( 0xffffff, 0.5 );  // This light shines fromt the left.
+    lightLeft.position.set(10,0,0);
+    scene.add( lightRight );
+
+    lightTop = new THREE.DirectionalLight( 0xffffff, 0.5 );  // This light shines from the top.
+    lightTop.castShadow = true; // This light will cast shadows.
+    scene.add(lightTop);
+
+    scene.add(camera);
+    scene.add( new THREE.PointLight( "white", 1) ); 
+    scene.add( new THREE.AmbientLight("white", 1) );
+
+    //------------------- Create the scene's visible objects ----------------------
+    //------------------- Create the scene's visible objects ----------------------
+    
+    room = new THREE.Object3D();
+
+    floor = new THREE.Mesh(
+        new THREE.CylinderGeometry(30,30,20,100,100),
+        new THREE.MeshPhongMaterial({
+            color: "brown",
+            shading: THREE.SmoothShading,
+        })
+    )
+    floor.rotation.z = Math.PI/2;
+    floor.position.set(0,-33,0);
+
+    ceiling = new THREE.Mesh(
+        new THREE.CylinderGeometry(45,45,50,100,100,true),
+        new THREE.MeshPhongMaterial({
+            color: "white",
+            shading: THREE.SmoothShading,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.1
+        })
+    )
+    ceiling.rotation.z = Math.PI/2;
+    ceiling.position.set(0,-33,0);
+
+    
+    scene.add(floor);
+    scene.add(ceiling);
+    //----------------------------------------------------------------------------------------------
+
+    rectsL = new THREE.Object3D();
+    rectsL1 = new THREE.Object3D();
+    rectsL2 = new THREE.Object3D();
+    rectsL3 = new THREE.Object3D();
+
+    rectLeftL = new THREE.Mesh(
+        new THREE.BoxGeometry( 1, 2, 1),
+        new THREE.MeshPhongMaterial({
+            color: "blue"
+        })
+    )
+
+    rectRightL = new THREE.Mesh(
+        new THREE.BoxGeometry( 1, 2, 1),
+        new THREE.MeshPhongMaterial({
+            color: "blue"
+        })
+    )
+    rectRightL.position.set( 1, -1, 0);
+
+    rectsL.add(rectLeftL);
+    rectsL.add(rectRightL);
+    rectsL.castShadow = true; // This object will cast shadows.
+    rectsL.receiveShadow = true; // Shadows will show up on this object.
+
+    rectsL.position.set(5.3, 7, 5);
+    rectsL.rotation.set(Math.PI/2,0,0);
+    rectsL1.add(rectsL.clone());
+    room.add(rectsL1);
+
+    rectsL.position.set(-7, 7, -27);
+    rectsL.rotation.set(Math.PI/2,0,0);
+    rectsL2.add(rectsL.clone());
+    room.add(rectsL2);
+
+    rectsL.position.set(0.6, 7, 20);
+    rectsL.rotation.set(Math.PI/2,0,0);
+    rectsL3.add(rectsL.clone());
+    room.add(rectsL3);
+
+
+    //------------------- Create the scene's visible objects ----------------------
+
+    square1 = new THREE.Object3D();
+    square2 = new THREE.Object3D();
+
+    square = new THREE.Mesh(
+        new THREE.BoxGeometry( 2, 2, 1),
+        new THREE.MeshPhongMaterial({
+            color: "yellow"
+        })
+    )
+    square.castShadow = true; 
+    square.receiveShadow = true; 
+
+    square.position.set(7, 7, -15);
+    square.rotation.set(Math.PI/2,0,0);
+    square1.add(square.clone());
+    room.add(square1);
+
+    square.position.set(-4.6, 7, 20);
+    square.rotation.set(Math.PI/2,0,0);
+    square2.add(square.clone());
+    room.add(square2);
+
+    //------------------- Create the scene's visible objects ----------------------
+
+    rectangle = new THREE.Object3D();
+    rectangle1 = new THREE.Object3D();
+    rectangle2 = new THREE.Object3D();
+
+    cube1 = new THREE.Mesh(
+        new THREE.BoxGeometry( 1, 1, 1),
+        new THREE.MeshPhongMaterial({
+            color: "brown"
+        })
+    )
+
+    rect1 = new THREE.Mesh(
+        new THREE.BoxGeometry( 3, 1, 1),
+        new THREE.MeshPhongMaterial({
+            color: "brown"
+        })
+    )
+    rect1.position.set(0, -1, 0);
+
+    rectangle.add(cube1);
+    rectangle.add(rect1);
+    rectangle.castShadow = true; 
+    rectangle.receiveShadow = true; 
+
+    rectangle.position.set(4.6, 7, 0);
+    rectangle.rotation.set(Math.PI/2,0,0);
+    rectangle1.add(rectangle.clone());
+    room.add(rectangle1);
+
+    rectangle.position.set(0, 7, -21);
+    rectangle.rotation.set(Math.PI/2,0,0);
+    rectangle2.add(rectangle.clone());
+    room.add(rectangle2);
+
+    //------------------- Create the scene's visible objects ----------------------
+
+    rectsR = new THREE.Object3D();
+    rectsR1 = new THREE.Object3D();
+    rectsR2 = new THREE.Object3D();
+
+    rectLeftR = new THREE.Mesh(
+        new THREE.BoxGeometry( 1, 2, 1),
+        new THREE.MeshPhongMaterial({
+            color: "green"
+        })
+    )
+    rectLeftR.position.set( -1, -1, 0);
+
+    rectRightR = new THREE.Mesh(
+        new THREE.BoxGeometry( 1, 2, 1),
+        new THREE.MeshPhongMaterial({
+            color: "green"
+        })
+    )
+
+    rectsR.add(rectLeftR);
+    rectsR.add(rectRightR);
+    rectsR.castShadow = true; 
+    rectsR.receiveShadow = true; 
+
+    rectsR.position.set(2.3, 7, 12);
+    rectsR.rotation.set(Math.PI/2,0,0);
+    rectsR1.add(rectsR.clone());
+    room.add(rectsR1);
+
+    rectsR.position.set(0.5, 7, -12);
+    rectsR.rotation.set(Math.PI/2,0,0);
+    rectsR2.add(rectsR.clone());
+    room.add(rectsR2);
+
+    //------------------- Create the scene's visible objects ----------------------
+
+    ElL = new THREE.Object3D();
+    ElL1 = new THREE.Object3D();
+    ElL2 = new THREE.Object3D();
+    ElL3 = new THREE.Object3D();
+
+    cube2 = new THREE.Mesh(
+        new THREE.BoxGeometry( 1, 1, 1),
+        new THREE.MeshPhongMaterial({
+            color: "purple"
+        })
+    )
+    cube2.position.set(1, 0, 0);
+
+    rect2 = new THREE.Mesh(
+        new THREE.BoxGeometry( 3, 1, 1),
+        new THREE.MeshPhongMaterial({
+            color: "purple"
+        })
+    )
+    rect2.position.set(0, -1, 0);
+    rect2.rotation.set(0, 0, 1.57);
+
+    ElL.add(cube2);
+    ElL.add(rect2);
+    ElL.castShadow = true; 
+    ElL.receiveShadow = true; 
+
+    ElL.position.set(-5.3, 7, -9);
+    ElL.rotation.set(Math.PI/2,0,0);
+    ElL1.add(ElL.clone());
+    room.add(ElL1);
+
+    ElL.position.set(4.6, 7, -24);
+    ElL.rotation.set(Math.PI/2,0,0);
+    ElL2.add(ElL.clone());
+    room.add(ElL2);
+
+    ElL.position.set(-5.3, 7, 12);
+    ElL.rotation.set(Math.PI/2,0,0);
+    ElL3.add(ElL.clone());
+    room.add(ElL3);
+
+    //------------------- Create the scene's visible objects ----------------------
+
+    ElR = new THREE.Object3D();
+    ElR1 = new THREE.Object3D();
+    ElR2 = new THREE.Object3D();
+    ElR3 = new THREE.Object3D();
+
+    cube3 = new THREE.Mesh(
+        new THREE.BoxGeometry( 1, 1, 1),
+        new THREE.MeshPhongMaterial({
+            color: "cyan"
+        })
+    )
+    cube3.position.set(-1, 0, 0);
+
+    rect3 = new THREE.Mesh(
+        new THREE.BoxGeometry( 3, 1, 1),
+        new THREE.MeshPhongMaterial({
+            color: "cyan"
+        })
+    )
+    rect3.position.set(0, -1, 0);
+    rect3.rotation.set(0, 0, 1.57);
+
+    ElR.add(cube3);
+    ElR.add(rect3);
+    ElR.castShadow = true; 
+    ElR.receiveShadow = true; 
+
+    ElR.position.set(4.3, 7, -6);
+    ElR.rotation.set(Math.PI/2,0,0);
+    ElR1.add(ElR.clone());
+    room.add(ElR1);
+
+    ElR.position.set(-4.6, 7, -18);
+    ElR.rotation.set(Math.PI/2,0,0);
+    ElR2.add(ElR.clone());
+    room.add(ElR2);
+
+    ElR.position.set(6.3, 7, 13);
+    ElR.rotation.set(Math.PI/2,0,0);
+    ElR3.add(ElR2.clone());
+    room.add(ElR3);
+
+    //------------------- Create the scene's visible objects ----------------------
+
+    bar1 = new THREE.Object3D();
+    bar2 = new THREE.Object3D();
+    bar3 = new THREE.Object3D();
+
+    bar = new THREE.Mesh(
+        new THREE.BoxGeometry( 4, 1, 1),
+        new THREE.MeshPhongMaterial({
+            color: "red"
+        })
+    )
+    bar.castShadow = true; 
+    bar.receiveShadow = true; 
+
+    bar.position.set(4.3, 7, 15);
+    bar.rotation.set(Math.PI/2,0,0);
+    bar1.add(bar.clone());
+    room.add(bar1);
+
+    bar.position.set(-3.5, 7, -3);
+    bar.rotation.set(Math.PI/2,0,0);
+    bar2.add(bar.clone());
+    room.add(bar2);
+
+    bar.position.set(0, 7, 5);
+    bar.rotation.set(Math.PI/2,0,Math.PI/2);
+    bar3.add(bar.clone());
+    room.add(bar3);
+
+    //----------------------------------------------------------------------------------------------
+
+    shapes.push(rectsL3);
+
+    scene.add(room);
+} 
+
+function updateForFrame() {
+
+    //floor.rotation.x -= 0.5;
+    if(shapes[0].position.y !=-10){
+        shapes[0].position.y -= 0.5; 
+    }
+}
+
+function installOrbitControls() {
+    controls = new THREE.OrbitControls(camera,canvas);
+    controls.noPan = true; 
+    controls.noZoom = true;
+    controls.staticMoving = true;
+    function move() {
+        controls.update();
+        if (! animating) {
+            render();
+        }
+    }
+    function down() {
+        document.addEventListener("mousemove", move, false);
+    }
+    function up() {
+        document.removeEventListener("mousemove", move, false);
+    }
+    function touch(event) {
+        if (event.touches.length == 1) {
+            move();
+        }
+    }
+    canvas.addEventListener("mousedown", down, false);
+    canvas.addEventListener("touchmove", touch, false);
+}
+
+function doAnimateCheckbox() {
+   var run = document.getElementById("animateCheckbox").checked;
+   if (run != animating) {
+       animating = run;
+       if (animating) {
+           requestAnimationFrame(doFrame);
+       }
+   }
+}
+
+function doFrame() {
+    if (animating) {
+        frameNumber++;
+        updateForFrame();
+        render();
+        requestAnimationFrame(doFrame);
+    }
+}
+
+
+function init() {
+    try {
+        canvas = document.getElementById("glcanvas");
+        renderer = new THREE.WebGLRenderer({
+            canvas: canvas,
+            antialias: true,
+            alpha: false
+        });
+    }
+    catch (e) {
+        document.getElementById("message").innerHTML="<b>Sorry, an error occurred:<br>" +
+                e + "</b>";
+        return;
+    }
+    document.getElementById("animateCheckbox").checked = false;
+    document.getElementById("animateCheckbox").onchange = doAnimateCheckbox;
+    createWorld();
+    installOrbitControls();
+    render();
+}
+
+</script>
+</head>
+<body onload="init()">
+
+
+<noscript>
+   <p style="color: #AA0000; font-weight: bold">Sorry, but this page requires JavaScript!</p>
+</noscript>
+
+<p style="color:#AA0000; font-weight: bold" id="message">
+</p>
+
+<p>
+   <label><input type="checkbox" id="animateCheckbox"><b>Animate</b></label>
+   <b style="margin-left:50px">Use the mouse to rotate the model.</b>
+</p>
+
+<div id="canvas-holder" style="float:left; border: thin solid black; background-color: white">
+   <canvas width=900 height=500 id="glcanvas"></canvas>
+</div>
+
+</body>
+</html>
+
+  </body>
+</html>

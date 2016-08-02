@@ -1,0 +1,800 @@
+<html>
+  <body>
+<!DOCTYPE html>
+<head>
+<meta charset="UTF-8">
+<style>
+    body {
+        background-color: black;
+        overflow: hidden;  /* Make sure we don't get scroll bars. */
+    }
+    #gameCanvas {
+        background-color: black;
+        width: 900px;
+        height: 686px;
+        margin: auto;
+        align: center;
+    }
+    #scoreboard {
+        text-align: center;   /* Aligns text on scoreboard in centre. */
+        font-family: Segoe UI, Helvetica, Ubuntu, sans-serif;  /* Sets font for entire scoreboard. */
+        padding:0; 
+        margin:0;
+        color: white;
+    }
+    #best-score {
+        font-size:200%; 
+        padding:0; 
+        margin:0;
+        color: white;
+    }
+    #score {
+        font-size:600%; 
+        padding:0; 
+        margin:0;
+        color: white;
+    }
+    #title {
+        font-size:600%; 
+        padding:0; 
+        margin:0;
+        color: blue;
+    }
+    #title2 {
+        font-size:400%; 
+        padding:0; 
+        margin:0;
+        color: blue;
+    }
+    #startNote {
+        font-size:200%; 
+        padding:0; 
+        margin:0;
+        color: red;
+    }
+</style>
+<script src="three.js"></script>
+<script src="OrbitControls.js"></script>
+<script>
+
+"use strict";
+
+/**
+    These are the global variables and are made global so that
+    they can be used in other function, etc for animation.
+**/
+//Standard three.js requirements
+var canvas, renderer, scene, camera; 
+
+//THREE.js objects
+var floor, ceiling, wall;
+var startL, startR;
+var bar;
+
+//THREE.js 3D objects
+var room, room1, room2;
+var player;
+var rectsL, rectsL1, rectsL2, rectsL3;
+var square1, square2;
+var rectsR, rectsR1, rectsR2;
+var ElL, ElL1, ElL2, ElL3;
+var ElR, ElR1, ElR2, ElR3;
+var rectangle, rectangle1, rectangle2;
+var bar1, bar2, bar3;
+
+//THREE.js extra varibales
+var shapes = [], temp = [];
+var y = 8, bottom = -12;
+var start = false;
+var score = 0;
+var bestscore = 0;
+var startNote;
+
+
+/**
+    The render function draws the scene
+**/
+function render() {
+    renderer.render(scene, camera);
+}
+
+
+/**
+    This function is called by the init() method to create the world. 
+**/
+function createWorld() {
+    scene = new THREE.Scene();  //Create the scene
+    room1 = new THREE.Object3D();
+    room2 = new THREE.Object3D();
+    
+  //----------------------------------------Create skybox and set images for cubemap-----------------------------------------
+
+    var textureURLs = [  // URLs of the six faces of the cube map 
+        "skybox/posx.jpg",   // Note:  The order in which
+        "skybox/negx.jpg",   //   the images are listed is
+        "skybox/posy.jpg",   //   important!
+        "skybox/negy.jpg",  
+        "skybox/posz.jpg",   
+        "skybox/negz.jpg"
+    ];
+
+    var texture = THREE.ImageUtils.loadTextureCube( textureURLs );
+
+    var shader = THREE.ShaderLib[ "cube" ]; // contains the required shaders
+    shader.uniforms[ "tCube" ].value = texture; // data for the shaders
+
+    var material = new THREE.ShaderMaterial( {// A ShaderMaterial uses custom vertex and fragment shaders.
+        fragmentShader: shader.fragmentShader,
+        vertexShader: shader.vertexShader,
+        uniforms: shader.uniforms, 
+        depthWrite: false,
+        side: THREE.BackSide
+    } );
+
+    var skybox = new THREE.Mesh( new THREE.CubeGeometry( 100, 100, 100 ), material );
+    //scene.add(skybox);
+    
+    //--------------------------------------Create camera and lights for the scene-------------------------------------------
+    
+    camera = new THREE.PerspectiveCamera(30, canvas.width/canvas.height, 0.1, 100);
+    camera.position.set( 0, -2, 30);
+    scene.add(camera);
+
+
+    var light;  // A light shining from the direction of the camera; moves with the camera.
+    light = new THREE.DirectionalLight( 0xffffff, 0.5 );
+    light.position.set(0,0,1);
+    camera.add(light);
+
+    var lightLeft, lightRight, lightTop;
+
+    lightLeft = new THREE.DirectionalLight( 0xffffff, 0.5 );  // This light shines from the right.
+    lightLeft.position.set(-10,0,0);
+    scene.add( lightLeft ); 
+
+    lightLeft = new THREE.DirectionalLight( 0xffffff, 0.5 );  // This light shines fromt the left.
+    lightLeft.position.set(10,0,0);
+    scene.add( lightRight );
+
+    lightTop = new THREE.DirectionalLight( 0xffffff, 0.5 );  // This light shines from the top.
+    lightTop.castShadow = true; // This light will cast shadows.
+    scene.add(lightTop);
+
+    scene.add( new THREE.PointLight( "white", 1) ); 
+    scene.add( new THREE.AmbientLight("white", 0.5) );
+
+    //--------------------------------------Create game player and put in scene------------------------------------
+
+    player = new THREE.Object3D();
+
+    var head = new THREE.Mesh(
+        new THREE.BoxGeometry(1,1,1),
+        new THREE.MeshPhongMaterial({
+            color: "black"
+        })
+    )
+    player.add(head);
+
+    var body = new THREE.Mesh(
+        new THREE.BoxGeometry(1.5,1.3,1),
+        new THREE.MeshPhongMaterial({
+            color: "black"
+        })
+    )
+    body.position.set(0,-1,0);
+    player.add(body);
+
+    var legs = new THREE.Mesh(
+        new THREE.BoxGeometry(0.9,1,1),
+        new THREE.MeshPhongMaterial({
+            color: "black"
+        })
+    )
+    legs.position.set(0,-2,0);
+    player.add(legs);
+
+    player.position.set(0,-2.5,18);
+    player.scale.set(0.7,0.7,0.7);
+    scene.add(player);
+
+    //-----------------------------------Create the scene's ground and top--------------------------------------------
+    
+    room = new THREE.Object3D();
+
+    floor = new THREE.Mesh(
+        new THREE.CylinderGeometry(30,30,18,100,100),
+        new THREE.MeshPhongMaterial({
+            color: "brown",
+            shading: THREE.SmoothShading,
+        })
+    )
+    floor.rotation.z = Math.PI/2;
+    floor.position.set(0,-33,0);
+
+    ceiling = new THREE.Mesh(
+        new THREE.CylinderGeometry(44,44,35,100,100,true),
+        new THREE.MeshPhongMaterial({
+            color: "skyblue",
+            shading: THREE.SmoothShading,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.3
+        })
+    )
+    ceiling.rotation.z = Math.PI/2;
+    ceiling.position.set(0,-33,0);
+
+    scene.add(floor);
+    scene.add(ceiling);
+
+
+
+    //-------------------------------------------Create the scene's objects-----------------------------------------
+    //Object 1 and 2
+    startL = new THREE.Mesh(
+        new THREE.BoxGeometry( 10, 10, 0.1),
+        new THREE.MeshPhongMaterial({
+            //map: THREE.ImageUtils.loadTexture('images/wall.jpg'),
+        shinniness: 0.2
+        })
+    )
+    startL.position.set(-4,0,10);
+
+    startR = new THREE.Mesh(
+        new THREE.BoxGeometry( 10, 10, 0.1),
+        new THREE.MeshPhongMaterial({
+            //map: THREE.ImageUtils.loadTexture('images/wall.jpg'),
+        shinniness: 0.2
+        })
+    )
+    startR.position.set(4,0,10);
+
+    scene.add(startL);
+    scene.add(startR);
+
+    //-------------------------------------------------------------------------------------------------------
+    //Object 3
+    rectsL = new THREE.Object3D();
+    rectsL1 = new THREE.Object3D();
+    rectsL2 = new THREE.Object3D();
+    rectsL3 = new THREE.Object3D();
+
+    var rectLeftL = new THREE.Mesh(
+        new THREE.BoxGeometry( 1, 2, 1),
+        new THREE.MeshPhongMaterial({
+            color: "blue"
+        })
+    )
+
+    var rectRightL = new THREE.Mesh(
+        new THREE.BoxGeometry( 1, 2, 1),
+        new THREE.MeshPhongMaterial({
+            color: "blue"
+        })
+    )
+    rectRightL.position.set( 1, -1, 0);
+
+    rectsL.add(rectLeftL);
+    rectsL.add(rectRightL);
+    rectsL.castShadow = true; // This object will cast shadows.
+    rectsL.receiveShadow = true; // Shadows will show up on this object.
+
+
+    //Clones of object 3
+    rectsL.position.set(5.3, y, 5);
+    rectsL.rotation.set(Math.PI/2,0,0);
+    temp.push(rectsL.clone());
+
+    rectsL.position.set(-7, y, -27);
+    rectsL.rotation.set(Math.PI/2,0,0);
+    temp.push(rectsL.clone());
+
+    rectsL.position.set(-0.3, y, 20);
+    rectsL.rotation.set(Math.PI/2,0,0);
+    temp.push(rectsL.clone());
+
+
+    //------------------------------------------------------------------------------------------------
+    //Object 4
+    square1 = new THREE.Object3D();
+    square2 = new THREE.Object3D();
+
+    var square = new THREE.Mesh(
+        new THREE.BoxGeometry( 2, 2, 1),
+        new THREE.MeshPhongMaterial({
+            color: "yellow"
+        })
+    )
+    square.castShadow = true; 
+    square.receiveShadow = true; 
+
+    square.position.set(7, y, -15);
+    square.rotation.set(Math.PI/2,0,0);
+    temp.push(square.clone());
+
+    square.position.set(-4.6, y, 20);
+    square.rotation.set(Math.PI/2,0,0);
+    temp.push(square.clone());
+
+    //------------------- Create the scene's visible objects ----------------------
+    //Object 5
+    rectangle = new THREE.Object3D();
+    rectangle1 = new THREE.Object3D();
+    rectangle2 = new THREE.Object3D();
+
+    var cube1 = new THREE.Mesh(
+        new THREE.BoxGeometry( 1, 1, 1),
+        new THREE.MeshPhongMaterial({
+            color: "brown"
+        })
+    )
+
+    var rect1 = new THREE.Mesh(
+        new THREE.BoxGeometry( 3, 1, 1),
+        new THREE.MeshPhongMaterial({
+            color: "brown"
+        })
+    )
+    rect1.position.set(0, -1, 0);
+
+    rectangle.add(cube1);
+    rectangle.add(rect1);
+    rectangle.castShadow = true; 
+    rectangle.receiveShadow = true; 
+
+    rectangle.position.set(4.6, y, 0);
+    rectangle.rotation.set(Math.PI/2,0,0);
+    temp.push(rectangle.clone());
+
+    rectangle.position.set(-1, y, -22);
+    rectangle.rotation.set(Math.PI/2,0,0);
+    rectangle2.add(rectangle.clone());
+    temp.push(rectangle2);
+
+    //------------------- Create the scene's visible objects ----------------------
+    //Object 6
+    rectsR = new THREE.Object3D();
+    rectsR1 = new THREE.Object3D();
+    rectsR2 = new THREE.Object3D();
+
+    var rectLeftR = new THREE.Mesh(
+        new THREE.BoxGeometry( 1, 2, 1),
+        new THREE.MeshPhongMaterial({
+            color: "green"
+        })
+    )
+    rectLeftR.position.set( -1, -1, 0);
+
+    var rectRightR = new THREE.Mesh(
+        new THREE.BoxGeometry( 1, 2, 1),
+        new THREE.MeshPhongMaterial({
+            color: "green"
+        })
+    )
+
+    rectsR.add(rectLeftR);
+    rectsR.add(rectRightR);
+    rectsR.castShadow = true; 
+    rectsR.receiveShadow = true; 
+
+    rectsR.position.set(0.3, y, 12);
+    rectsR.rotation.set(Math.PI/2,0,0);
+    temp.push(rectsR.clone());
+
+    rectsR.position.set(0.5, y, -12);
+    rectsR.rotation.set(Math.PI/2,0,0);
+    temp.push(rectsR.clone());
+
+    //------------------- Create the scene's visible objects ----------------------
+    //Object 7
+    ElL = new THREE.Object3D();
+    ElL1 = new THREE.Object3D();
+    ElL2 = new THREE.Object3D();
+    ElL3 = new THREE.Object3D();
+
+    var cube2 = new THREE.Mesh(
+        new THREE.BoxGeometry( 1, 1, 1),
+        new THREE.MeshPhongMaterial({
+            color: "purple"
+        })
+    )
+    cube2.position.set(1, 0, 0);
+
+    var rect2 = new THREE.Mesh(
+        new THREE.BoxGeometry( 3, 1, 1),
+        new THREE.MeshPhongMaterial({
+            color: "purple"
+        })
+    )
+    rect2.position.set(0, -1, 0);
+    rect2.rotation.set(0, 0, 1.57);
+
+    ElL.add(cube2);
+    ElL.add(rect2);
+    ElL.castShadow = true; 
+    ElL.receiveShadow = true; 
+
+    ElL.position.set(-5.3, y, -9);
+    ElL.rotation.set(Math.PI/2,0,0);
+    temp.push(ElL.clone());
+
+    ElL.position.set(4.6, y, -24);
+    ElL.rotation.set(Math.PI/2,0,0);
+    temp.push(ElL.clone());
+
+    ElL.position.set(-5.3, y, 12);
+    ElL.rotation.set(Math.PI/2,0,0);
+    temp.push(ElL.clone());
+
+    //------------------- Create the scene's visible objects ----------------------
+    //Object 8
+    ElR = new THREE.Object3D();
+    ElR1 = new THREE.Object3D();
+    ElR2 = new THREE.Object3D();
+    ElR3 = new THREE.Object3D();
+
+    var cube3 = new THREE.Mesh(
+        new THREE.BoxGeometry( 1, 1, 1),
+        new THREE.MeshPhongMaterial({
+            color: "cyan"
+        })
+    )
+    cube3.position.set(-1, 0, 0);
+
+    var rect3 = new THREE.Mesh(
+        new THREE.BoxGeometry( 3, 1, 1),
+        new THREE.MeshPhongMaterial({
+            color: "cyan"
+        })
+    )
+    rect3.position.set(0, -1, 0);
+    rect3.rotation.set(0, 0, 1.57);
+
+    ElR.add(cube3);
+    ElR.add(rect3);
+    ElR.castShadow = true; 
+    ElR.receiveShadow = true; 
+
+    ElR.position.set(4.3, y, -6);
+    ElR.rotation.set(Math.PI/2,0,0);
+    temp.push(ElR.clone());
+
+    ElR.position.set(-4.6, y, -18);
+    ElR.rotation.set(Math.PI/2,0,0);
+    temp.push(ElR.clone());
+
+    ElR.position.set(-4.6, y, 4);
+    ElR.rotation.set(Math.PI/2,0,0);
+    temp.push(ElR.clone());
+
+    //------------------- Create the scene's visible objects ----------------------
+    //Object 9
+    bar1 = new THREE.Object3D();
+    bar2 = new THREE.Object3D();
+    bar3 = new THREE.Object3D();
+
+    var bar = new THREE.Mesh(
+        new THREE.BoxGeometry( 4, 1, 1),
+        new THREE.MeshPhongMaterial({
+            color: "red"
+        })
+    )
+    bar.castShadow = true; 
+    bar.receiveShadow = true; 
+
+    bar.position.set(4.3, y, 13);
+    bar.rotation.set(Math.PI/2,0,0);
+    temp.push(bar.clone());
+
+    bar.position.set(-3.5, y, -3);
+    bar.rotation.set(Math.PI/2,0,0);
+    temp.push(bar.clone());
+
+    bar.position.set(0, y, 3);
+    bar.rotation.set(Math.PI/2,0,Math.PI/2);
+    temp.push(bar.clone());
+
+    //------------------- Create the scene's visible objects ----------------------
+    //Add objects to scene
+    var i, j;
+    var swap;
+
+    for(i = 0; i < temp.length; i++){
+        if(temp[i].position.z > temp[i+1].position.z){
+            swap = temp[i].
+            temp[i] = temp[i+1];
+            temp[i+1] = swap;
+        }
+    }
+
+    for(i = 0; i < temp.length; i++){
+        shapes.push(temp[i]);
+        room.add(shapes[i]);
+    }
+
+
+    room.position.z = -7;
+    scene.add(room);
+
+    /*shapes.push(rectsL3);
+    shapes.push(square2);
+    shapes.push(ElL3);
+    shapes.push(bar1);
+    shapes.push(rectsR1);
+    shapes.push(rectsL1);
+    shapes.push(bar3);
+    shapes.push(ElR3);
+    shapes.push(rectangle1);
+    shapes.push(bar2);
+    shapes.push(ElR1);
+    shapes.push(ElL1);
+    shapes.push(rectsR2);
+    shapes.push(square1);
+    shapes.push(ElR2);
+    shapes.push(rectangle2);
+    shapes.push(ElL2);
+    shapes.push(rectsL2);*/
+
+
+} 
+
+//-----------------------------------------------Animation---------------------------------------------------------
+/**
+    This function is called once for each frame of the animation, it updates any
+    animated properties.
+**/
+
+function updateForFrame() {
+    //Animation code for two object at start page
+    if(startL.position.x != -16){
+        startL.position.x -= 0.5;
+    } else if(startL.position.x == -16){
+        scene.remove(startL);
+    }
+    if(startR.position.x != 16){
+        startR.position.x += 0.5;
+    } else if(startR.position.x == -16){
+        scene.remove(startR);
+    }
+    
+    //Animation code for objects, called as a function
+    animateObjects();
+
+    //Rotation of ground to create movement illusion
+    floor.rotation.x -= 0.5;
+
+    //Animation code for movemnt of objects
+    if(room.position.z != 20){
+        room.position.z += 0.1; 
+    } 
+  
+          score += 1;
+        document.getElementById("score").innerHTML = score;
+
+}
+
+/**
+    This function is called to for animation of objects. Each object is 
+    coded individually. This is how objects are timed to fall after each other.
+**/
+function animateObjects () {
+var i = 0;
+
+    if(shapes[i].position.y != bottom){
+        shapes[i].position.y -= 0.5; 
+    } else if(shapes[i].position.y == bottom){
+        i++;
+        if(shapes[i].position.y != bottom){
+            shapes[i].position.y -= 0.5;
+        } else if(shapes[i].position.y == bottom){
+            i++;
+            if(shapes[i].position.y != bottom){
+                shapes[i].position.y -= 0.5;
+            } else if(shapes[i].position.y == bottom){
+                i++;
+                if(shapes[i].position.y != bottom){
+                    shapes[i].position.y -= 0.5;
+                } else if(shapes[i].position.y == bottom){
+                    i++;
+                    if(shapes[i].position.y != bottom){
+                        shapes[i].position.y -= 0.5;
+                    } else if(shapes[i].position.y == bottom){
+                        i++;
+                        if(shapes[i].position.y != bottom){
+                            shapes[i].position.y -= 0.5;
+                        } else if(shapes[i].position.y == bottom){
+                            i++;
+                            if(shapes[i].position.y != bottom){
+                                shapes[i].position.y -= 0.5;
+                            } else if(shapes[i].position.y == bottom){
+                                i++;
+                                if(shapes[i].position.y != bottom){
+                                    shapes[i].position.y -= 0.5;
+                                } else if(shapes[i].position.y == bottom){
+                                    i++;
+                                    if(shapes[i].position.y != bottom){
+                                        shapes[i].position.y -= 0.5;
+                                    } else if(shapes[i].position.y == bottom){
+                                        i++;
+                                        if(shapes[i].position.y != bottom){
+                                            shapes[i].position.y -= 0.5;
+                                        } else if(shapes[i].position.y == bottom){
+                                            i++;
+                                            if(shapes[i].position.y != bottom){
+                                                shapes[i].position.y -= 0.5;
+                                            } else if(shapes[i].position.y == bottom){
+                                                i++;
+                                                if(shapes[i].position.y != bottom){
+                                                    shapes[i].position.y -= 0.5;
+                                                } else if(shapes[i].position.y == bottom){
+                                                    i++;
+                                                    if(shapes[i].position.y != bottom){
+                                                        shapes[i].position.y -= 0.5;
+                                                    } else if(shapes[i].position.y == bottom){
+                                                        i++;
+                                                        if(shapes[i].position.y != bottom){
+                                                            shapes[i].position.y -= 0.5;
+                                                        } else if(shapes[i].position.y == bottom){
+                                                            i++;
+                                                            if(shapes[i].position.y != bottom){
+                                                                shapes[i].position.y -= 0.5;
+                                                            } else if(shapes[i].position.y == bottom){
+                                                                i++;
+                                                                if(shapes[i].position.y != bottom){
+                                                                    shapes[i].position.y -= 0.5;
+                                                                } else if(shapes[i].position.y == bottom){
+                                                                    i++;
+                                                                    if(shapes[i].position.y != bottom){
+                                                                        shapes[i].position.y -= 0.5;
+                                                                    } else if(shapes[i].position.y == bottom){
+                                                                        i++;
+                                                                        if(shapes[i].position.y != bottom){
+                                                                            shapes[i].position.y -= 0.5;
+                                                                        }    
+                                                                    }   
+                                                                }   
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                           }
+                                        }
+                                    }
+                                }    
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+//------------------------------------------Key press and animation support---------------------------------
+/**
+    This function drives the animation, called by system through requestAnimationFrame()
+**/
+function doFrame() {
+    if(start){
+        updateForFrame();  
+        render();
+        requestAnimationFrame(doFrame); 
+    }
+}
+
+
+/**
+    This function sets the actions after a key is pressed
+**/
+function doKey(evt){
+
+    switch(evt.keyCode){
+        case 65:
+            if(player.position.x > -3){
+                player.rotation.y += 0.5;
+                addd();
+                player.rotation.y = 0;
+            }
+        break;
+
+        case 68:
+            if(player.position.x < 3){
+                player.rotation.y -= 0.5;
+                minus();
+                player.rotation.y = 0;
+            }
+        break;
+
+        case 32:
+           if(!start){
+                start = true;
+                doFrame();
+           }        
+        break;
+            
+        case 80:
+            if(start){
+                start = false;
+            } else if(start == false){
+                start = true;
+                doFrame();
+            }
+        break;
+
+        case 82:
+            window.location.href = "";
+            if(score > bestscore){
+                bestscore = score;
+                document.getElementById("score").innerHTML = bestscore;
+            }
+        break;
+    }
+}
+
+//Additional code for key press player movement
+function addd () {
+    player.position.x -= 2;
+}
+function minus () {
+    player.position.x += 2;
+}
+
+/*----------------------------- INITIALIZATION ----------------------------------------
+
+/**
+ *  This function is called by the onload event so it will run after the
+ *  page has loaded.  It creates the renderer, canvas, and scene objects,
+ *  calls createWorld() to add objects to the scene, and renders the
+ *  initial view of the scene.  If an error occurs, it is reported.
+ */
+function init() {
+    try {
+        canvas = document.getElementById("gameCanvas");
+        renderer = new THREE.WebGLRenderer( { 
+            canvas: canvas,
+            antialias: true
+        });
+    }
+    catch (e) { 
+        document.body.innerHTML="<h3><b>Sorry, WebGL is required but is not available.</b><h3>";
+        return;
+    }
+    createWorld();
+    render();
+
+    //Event handler when key pressed
+    window.addEventListener('keydown', doKey, false);
+}
+
+</script>
+</head>
+<body onload="init()">
+
+
+<noscript>
+   <p style="color: #AA0000; font-weight: bold">Sorry, but this page requires JavaScript!</p>
+</noscript>
+
+<p style="color:#AA0000; font-weight: bold" id="message">
+</p>
+
+<div id="canvas-holder" style="float:left; border: thin solid black; background-color: white">
+   <canvas width=900 height=686 id="gameCanvas"></canvas>
+</div>
+
+<div id='scoreboard'>
+            <h1 id='title'>TETRIS</h1>
+            <h1 id='title2'>DROP</h1>
+            <h1 id='best-score'>Best score: 0</h1>
+            <h2 id='score'>0</h2>
+            <h3>A - turn left
+            <br>D - turn right</h3>
+            <h4>
+            <br>R - restart
+            <br>P - pause</h4>
+            <h1 id='startNote'>push 'space' to start</h1>
+</div>
+
+</body>
+</html>
